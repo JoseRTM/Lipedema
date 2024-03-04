@@ -2,7 +2,7 @@
 # LIPEDEMA #
 ############
 
-pkg_names <- c("skimr","readxl", "dplyr", "ggplot2", "epiDisplay", "tidyverse", "httr")
+pkg_names <- c("skimr","gt","readxl", "dplyr", "ggplot2", "epiDisplay", "tidyverse", "httr")
 
 # Packages
 for (package in pkg_names) {
@@ -63,8 +63,63 @@ data_long <- data %>%
     names_pattern = "(.*)_(pre|post)$"
   ) 
 
+# TABLES
+summary_table <- data_long %>% 
+  group_by(time) %>% 
+  summarise(
+    eva = mean(eva, na.rm = TRUE),
+    pesadez = mean(pesadez, na.rm = TRUE),
+    edema = mean(edema, na.rm = TRUE),
+    imc = mean(imc, na.rm = TRUE),
+    mov_limitada = mean(mov_limitada, na.rm = TRUE),
+    apariencia = mean(apariencia, na.rm = TRUE),
+    exp_sintomas = mean(exp_sintomas, na.rm = TRUE),
+    exp_estetica = mean(exp_estetica, na.rm = TRUE)
+  ) %>%
+  pivot_longer(
+    -time,
+    names_to = "variable",
+    values_to = "mean"
+  ) %>%
+  pivot_wider(
+    names_from = time,
+    values_from = mean
+  )
+# Assuming `data_long` is in the correct long format
+# First, reshape the data back to a wide format for easier analysis by variable
+data_wide <- data_long %>% 
+  pivot_wider(names_from = time, values_from = value)
 
+# Define the variables for which you want to perform the tests
+variables <- c("eva", "pesadez", "edema", "imc", "mov_limitada", "apariencia", "exp_sintomas", "exp_estetica")
 
+# Perform Wilcoxon signed-rank test for each variable and gather results
+test_results <- map_df(variables, ~{
+  pre_column <- paste(.x, "pre", sep = "_")
+  post_column <- paste(.x, "post", sep = "_")
+  
+  test_result <- wilcox.test(data[[pre_column]], data[[post_column]], paired = TRUE, exact = FALSE, correct = FALSE)
+  
+  tibble(
+    variable = .x,
+    mean_pre = mean(data[[pre_column]], na.rm = TRUE),
+    mean_post = mean(data[[post_column]], na.rm = TRUE),
+    p_value = round(test_result$p.value,4)
+  )
+})
+
+# Create the summary table
+test_results %>%
+  gt() %>%
+  tab_header(
+    title = "Comparison of Pre and Post Intervention Variables with Wilcoxon Test"
+  ) %>%
+  cols_label(
+    variable = "Variable",
+    mean_pre = "Mean (Pre)",
+    mean_post = "Mean (Post)",
+    p_value = "P-value"
+  )
 
 # GRAFICO EVA
 data_long_2$tiempo <- factor(data_long_2$tiempo, levels = c("pre", "post"))
