@@ -2,7 +2,7 @@
 # LIPEDEMA #
 ############
 
-pkg_names <- c("readxl", "dplyr", "ggplot2", "epiDisplay", "tidyverse", "httr")
+pkg_names <- c("skimr","readxl", "dplyr", "ggplot2", "epiDisplay", "tidyverse", "httr")
 
 # Packages
 for (package in pkg_names) {
@@ -23,8 +23,11 @@ GET(file_url, write_disk(temp_file, overwrite = TRUE))
 # Load the data
 lipedema <- read_excel(temp_file)
 
+# QUICK CHECK OF DATA
+skim(lipedema) # some variables should not be character
+table(lipedema$edad) # there are strings inside the column
 
-# LIMPIEZA Y MANIPULACION
+# DATA CLEANING
 data <- lipedema %>% 
   mutate(imc = as.numeric(imc),
          altura = as.numeric(altura),
@@ -33,32 +36,35 @@ data <- lipedema %>%
          altura = na_if(altura,0),
          peso_pre = na_if(peso_pre,0),
         volumen = na_if(volumen, 0),
-        sintoma_pre = case_when(sintoma_pre == 1 ~ 1,
-                                sintoma_pre == 0 ~ 2,
-                                sintoma_pre == 2 ~ 3),
-        sintoma_post = case_when(sintoma_post == 1 ~ 1,
-                                 sintoma_post == 0 ~ 2,
-                                 sintoma_post == 2 ~ 3),
-        estetico_pre = case_when(estetico_pre == 1 ~ 1,
-                                 estetico_pre == 0 ~ 2,
-                                 estetico_pre == 2 ~ 3),
-        estetico_post = case_when(estetico_post == 1 ~ 1,
-                                  estetico_post == 0 ~ 2,
-                                  estetico_post == 2 ~ 3)) %>% 
-  rename(movilidad_pre = mov_limitada_pre, movilidad_post = mov_limitada_post) %>% 
+        edad = as.numeric(gsub("\\D", "", edad)),
+        peso_post = as.numeric(gsub("\\D", "", peso_post)),
+        exp_sintomas_pre = case_when(exp_sintomas_pre == 1 ~ 1,
+                                     exp_sintomas_pre == 0 ~ 2,
+                                     exp_sintomas_pre == 2 ~ 3),
+        exp_sintomas_post = case_when(exp_sintomas_post == 1 ~ 1,
+                                      exp_sintomas_post == 0 ~ 2,
+                                      exp_sintomas_post == 2 ~ 3),
+        exp_estetica_pre = case_when(exp_estetica_pre == 1 ~ 1,
+                                     exp_estetica_pre == 0 ~ 2,
+                                     exp_estetica_pre == 2 ~ 3),
+        exp_estetica_post = case_when(exp_estetica_post == 1 ~ 1,
+                                      exp_estetica_post == 0 ~ 2,
+                                      exp_estetica_post == 2 ~ 3),
+        imc_post = round(peso_post/altura**2,2)) %>%
+  rename(imc_pre = imc) %>% 
   rowid_to_column("id") 
-
 
 # WIDE TO LONG
 
 data_long <- data %>%
-  pivot_longer(cols = ends_with("_pre") | ends_with("_post"), 
-               names_to = c("variable", "tiempo"), 
-               names_sep = "_", 
-               values_to = "valor")
+  pivot_longer(
+    cols = ends_with("_pre") | ends_with("_post"),
+    names_to = c(".value", "time"),
+    names_pattern = "(.*)_(pre|post)$"
+  ) 
 
-data_long_2 <- data_long %>%
-  pivot_wider(names_from = variable, values_from = valor)
+
+
 
 # GRAFICO EVA
 data_long_2$tiempo <- factor(data_long_2$tiempo, levels = c("pre", "post"))
