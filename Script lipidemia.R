@@ -64,33 +64,19 @@ data_long <- data %>%
   ) 
 
 # TABLES
-summary_table <- data_long %>% 
-  group_by(time) %>% 
-  summarise(
-    eva = mean(eva, na.rm = TRUE),
-    pesadez = mean(pesadez, na.rm = TRUE),
-    edema = mean(edema, na.rm = TRUE),
-    imc = mean(imc, na.rm = TRUE),
-    mov_limitada = mean(mov_limitada, na.rm = TRUE),
-    apariencia = mean(apariencia, na.rm = TRUE),
-    exp_sintomas = mean(exp_sintomas, na.rm = TRUE),
-    exp_estetica = mean(exp_estetica, na.rm = TRUE)
-  ) %>%
-  pivot_longer(
-    -time,
-    names_to = "variable",
-    values_to = "mean"
-  ) %>%
-  pivot_wider(
-    names_from = time,
-    values_from = mean
-  )
-# Assuming `data_long` is in the correct long format
-# First, reshape the data back to a wide format for easier analysis by variable
-data_wide <- data_long %>% 
-  pivot_wider(names_from = time, values_from = value)
 
-# Define the variables for which you want to perform the tests
+# Custom function to format p-values
+format_p_value <- function(p) {
+  if (p < 0.001) {
+    "<0.001"
+  } else if (p < 0.01) {
+    "<0.01"
+  } else if (p < 0.05) {
+    "<0.05"
+  } else {
+    sprintf("%.3f", p)
+  }
+}
 variables <- c("eva", "pesadez", "edema", "imc", "mov_limitada", "apariencia", "exp_sintomas", "exp_estetica")
 
 # Perform Wilcoxon signed-rank test for each variable and gather results
@@ -102,9 +88,9 @@ test_results <- map_df(variables, ~{
   
   tibble(
     variable = .x,
-    mean_pre = mean(data[[pre_column]], na.rm = TRUE),
-    mean_post = mean(data[[post_column]], na.rm = TRUE),
-    p_value = round(test_result$p.value,4)
+    mean_pre = round(mean(data[[pre_column]], na.rm = TRUE),2),
+    mean_post = round(mean(data[[post_column]], na.rm = TRUE),2),
+    p_value = format_p_value(test_result$p.value)
   )
 })
 
