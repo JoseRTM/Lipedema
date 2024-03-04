@@ -2,16 +2,27 @@
 # LIPEDEMA #
 ############
 
-# librerias
-library(readxl)
-library(dplyr)
-library(ggplot2)
-library(epiDisplay)
-library(tidyverse)
-setwd("C:/Users/Jose/Desktop/Cirugía plástica")
+pkg_names <- c("readxl", "dplyr", "ggplot2", "epiDisplay", "tidyverse", "httr")
 
-# CARGAR DATOS
-lipedema <- read_excel("C:/Users/Jose/Desktop/Cirugía plástica/lipedema.xls")
+# Packages
+for (package in pkg_names) {
+  if (!require(package, character.only = TRUE)) {
+    install.packages(package)
+    library(package, character.only = TRUE)
+  }
+}
+
+# LOADING THE DATA
+# Set the URL of the Excel file in the GitHub repository
+file_url <- "https://github.com/JoseRTM/Lipedema/raw/master/lipedema%20excell%20feb%202024.xlsx"
+
+# Download the file
+temp_file <- tempfile(fileext = ".xlsx")
+GET(file_url, write_disk(temp_file, overwrite = TRUE))
+
+# Load the data
+lipedema <- read_excel(temp_file)
+
 
 # LIMPIEZA Y MANIPULACION
 data <- lipedema %>% 
