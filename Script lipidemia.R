@@ -2,7 +2,7 @@
 # LIPEDEMA #
 ############
 
-pkg_names <- c("skimr","gt","readxl", "dplyr", "ggplot2", "epiDisplay", "tidyverse", "httr")
+pkg_names <- c("skimr","gt","readxl", "dplyr", "ggplot2", "epiDisplay", "tidyverse", "httr", "nortest")
 
 # Packages
 for (package in pkg_names) {
@@ -63,9 +63,9 @@ data_long <- data %>%
     names_pattern = "(.*)_(pre|post)$"
   ) 
 
+
 # TABLES
 
-# Custom function to format p-values
 format_p_value <- function(p) {
   if (p < 0.001) {
     "<0.001"
@@ -77,20 +77,70 @@ format_p_value <- function(p) {
     sprintf("%.3f", p)
   }
 }
+
+# BASELINE CHARACTERISTICS
+variables_of_interest <- c("edad", "volumen", "imc_pre",  
+                           "freq_act_fisica", "reinicia_act_laboral", 
+                           "tiempo_comprension")
+
+# Calculate median and IQR
+summary_table <- data %>%
+  dplyr::select(all_of(variables_of_interest)) %>%
+  summarise(across(everything(), 
+                   ~ paste0(median(., na.rm = TRUE), " (", IQR(., na.rm = TRUE), ")"),
+                   .names = "{.col}"))%>%
+  pivot_longer(everything(), names_to = "variable", values_to = "statistics")
+
+p_values <- sapply(data[variables_of_interest], function(x) format_p_value(ad.test(x)$p.value))
+p_values_df <- data.frame(variable = names(p_values), p_value = p_values)
+
+# Combine summary statistics and p-values
+summary_table <- merge(summary_table, p_values_df, by = "variable")
+
+# Create the table using gt
+summary_table %>%
+  gt() %>%
+  tab_header(
+    title = "Summary Statistics and Normality Test for Selected Variables"
+  ) %>%
+  cols_label(
+    variable = "Variable",
+    statistics = "Median (IQR)",
+    p_value = "Anderson-Darling P-value"
+  )
+
+
+# PRE-POST DESCRIPTIVES
 variables <- c("eva", "pesadez", "edema", "imc", "mov_limitada", "apariencia", "exp_sintomas", "exp_estetica")
 
-# Perform Wilcoxon signed-rank test for each variable and gather results
+# Perform normality test and then t-test or Wilcoxon test based on normality
 test_results <- map_df(variables, ~{
   pre_column <- paste(.x, "pre", sep = "_")
   post_column <- paste(.x, "post", sep = "_")
   
-  test_result <- wilcox.test(data[[pre_column]], data[[post_column]], paired = TRUE, exact = FALSE, correct = FALSE)
+  # Calculate differences
+  differences <- data[[post_column]] - data[[pre_column]]
+  
+  # Test normality of differences
+  normality_test <- shapiro.test(differences)
+  
+  # Choose test based on normality
+  if (normality_test$p.value >= 0.05) {
+    # Use paired t-test if differences are normally distributed
+    test_result <- t.test(data[[pre_column]], data[[post_column]], paired = TRUE)
+    test_type <- "Paired t-test"
+  } else {
+    # Use Wilcoxon test if differences are not normally distributed
+    test_result <- wilcox.test(data[[pre_column]], data[[post_column]], paired = TRUE, exact = FALSE, correct = FALSE)
+    test_type <- "Wilcoxon test"
+  }
   
   tibble(
     variable = .x,
-    mean_pre = round(mean(data[[pre_column]], na.rm = TRUE),2),
-    mean_post = round(mean(data[[post_column]], na.rm = TRUE),2),
-    p_value = format_p_value(test_result$p.value)
+    mean_pre = round(mean(data[[pre_column]], na.rm = TRUE), 2),
+    mean_post = round(mean(data[[post_column]], na.rm = TRUE), 2),
+    p_value = format_p_value(test_result$p.value),
+    test_type = test_type
   )
 })
 
@@ -98,14 +148,18 @@ test_results <- map_df(variables, ~{
 test_results %>%
   gt() %>%
   tab_header(
-    title = "Comparison of Pre and Post Intervention Variables with Wilcoxon Test"
+    title = "Comparison of Pre and Post Intervention Variables"
   ) %>%
   cols_label(
     variable = "Variable",
     mean_pre = "Mean (Pre)",
     mean_post = "Mean (Post)",
-    p_value = "P-value"
+    p_value = "P-value",
+    test_type = "Test Used"
   )
+
+
+
 
 # GRAFICO EVA
 data_long_2$tiempo <- factor(data_long_2$tiempo, levels = c("pre", "post"))
