@@ -109,7 +109,11 @@ summary_table %>%
     p_value = "Anderson-Darling P-value"
   )
 
-
+table(data$enf_cronica_tipo)
+mean(data$imc_pre, na.rm =T)
+sd(data$imc_pre, na.rm = T)
+tab1(data$enf_cronica)
+tab1(data$anticonceptivo)
 # PRE-POST DESCRIPTIVES
 variables <- c("eva", "pesadez", "edema", "imc", "mov_limitada", "apariencia", "exp_sintomas", "exp_estetica")
 
@@ -137,8 +141,8 @@ test_results <- map_df(variables, ~{
   
   tibble(
     variable = .x,
-    mean_pre = round(mean(data[[pre_column]], na.rm = TRUE), 2),
-    mean_post = round(mean(data[[post_column]], na.rm = TRUE), 2),
+    median_pre = round(median(data[[pre_column]], na.rm = TRUE), 2),
+    median_post = round(median(data[[post_column]], na.rm = TRUE), 2),
     p_value = format_p_value(test_result$p.value),
     test_type = test_type
   )
@@ -152,15 +156,45 @@ test_results %>%
   ) %>%
   cols_label(
     variable = "Variable",
-    mean_pre = "Mean (Pre)",
-    mean_post = "Mean (Post)",
+    median_pre = "median (Pre)",
+    median_post = "median (Post)",
     p_value = "P-value",
     test_type = "Test Used"
   )
 
+data <- data %>%
+  mutate(exp_sin_pre_dummy = ifelse(exp_sintomas_pre == 1, 0, 1),
+         exp_sin_pos_dummy = ifelse(exp_sintomas_post == 1, 0, 1),
+         exp_est_pre_dummy = ifelse(exp_estetica_pre == 1, 0, 1),
+         exp_est_post_dummy = ifelse(exp_estetica_post == 1, 0, 1))
+
+# Perform McNemar's test for each level
+tab1(data$exp_sin_pre_dummy)
+tab1(data$exp_sin_pos_dummy)
+tab1(data$exp_est_pre_dummy)
+tab1(data$exp_est_post_dummy)
+mcnemar_symptoms <- mcnemar.test(data$exp_sin_pre_dummy, data$exp_sin_pos_dummy)
+print(mcnemar_symptoms)
+mcnemar_esthetic <- mcnemar.test(data$exp_est_pre_dummy, data$exp_est_post_dummy) 
+print(mcnemar_esthetic)
 
 
 
+mcnemar_test_1 <- mcnemar.test(data_dummy$exp_sintomas_pre_1, data_dummy$exp_sintomas_post_1)
+mcnemar_test_2 <- mcnemar.test(data_dummy$exp_sintomas_pre_2, data_dummy$exp_sintomas_post_2)
+tab1(data$exp_sin_pre_dummy)
+tab1(data$exp_sin_pos_dummy)
+
+table(data$exp_sintomas_pre)
+# Print the results
+cat("McNemar's test for level 0:\n")
+print(mcnemar_test_0)
+cat("\nMcNemar's test for level 1:\n")
+print(mcnemar_test_1)
+cat("\nMcNemar's test for level 2:\n")
+print(mcnemar_test_2)
+summary(wilcox.test(data$exp_sintomas_pre, data$exp_sintomas_post, paired = TRUE, exact = FALSE, correct = FALSE))
+t.test(data$exp_sintomas_pre, data$exp_sintomas_post, paired = TRUE, exact = FALSE, correct = FALSE)
 # GRAFICO EVA
 data_long_2$tiempo <- factor(data_long_2$tiempo, levels = c("pre", "post"))
 ggplot(data_long_2, aes(x = tiempo, y = eva, fill = tiempo)) +
