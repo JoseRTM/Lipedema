@@ -2,7 +2,7 @@
 # LIPEDEMA #
 ############
 
-pkg_names <- c("skimr","gt","readxl", "dplyr", "ggplot2", "epiDisplay", "tidyverse", "httr", "nortest")
+pkg_names <- c("skimr","patchwork", "gt","readxl", "dplyr", "ggplot2", "epiDisplay", "tidyverse", "httr", "nortest")
 
 # Packages
 for (package in pkg_names) {
@@ -114,6 +114,7 @@ mean(data$imc_pre, na.rm =T)
 sd(data$imc_pre, na.rm = T)
 tab1(data$enf_cronica)
 tab1(data$anticonceptivo)
+
 # PRE-POST DESCRIPTIVES
 variables <- c("eva", "pesadez", "edema", "imc", "mov_limitada", "apariencia", "exp_sintomas", "exp_estetica")
 
@@ -168,11 +169,12 @@ data <- data %>%
          exp_est_pre_dummy = ifelse(exp_estetica_pre == 1, 0, 1),
          exp_est_post_dummy = ifelse(exp_estetica_post == 1, 0, 1))
 
-# Perform McNemar's test for each level
+# Perform McNemar's test
 tab1(data$exp_sin_pre_dummy)
 tab1(data$exp_sin_pos_dummy)
 tab1(data$exp_est_pre_dummy)
 tab1(data$exp_est_post_dummy)
+
 mcnemar_symptoms <- mcnemar.test(data$exp_sin_pre_dummy, data$exp_sin_pos_dummy)
 print(mcnemar_symptoms)
 mcnemar_esthetic <- mcnemar.test(data$exp_est_pre_dummy, data$exp_est_post_dummy) 
@@ -180,30 +182,63 @@ print(mcnemar_esthetic)
 
 
 
-mcnemar_test_1 <- mcnemar.test(data_dummy$exp_sintomas_pre_1, data_dummy$exp_sintomas_post_1)
-mcnemar_test_2 <- mcnemar.test(data_dummy$exp_sintomas_pre_2, data_dummy$exp_sintomas_post_2)
-tab1(data$exp_sin_pre_dummy)
-tab1(data$exp_sin_pos_dummy)
+#############
+### PLOTS ###
+#############
+data_long$time <- factor(data_long$time, levels = c("pre", "post"))
+pain_plot <- ggplot(data_long, aes(x = time, y = eva, group = time)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA, fill = "white", color = "black") +
+  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5, color = "black") +
+  labs(x = "Treatment time", y = "Pain VAS Score") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylim(0, 10)
 
-table(data$exp_sintomas_pre)
-# Print the results
-cat("McNemar's test for level 0:\n")
-print(mcnemar_test_0)
-cat("\nMcNemar's test for level 1:\n")
-print(mcnemar_test_1)
-cat("\nMcNemar's test for level 2:\n")
-print(mcnemar_test_2)
-summary(wilcox.test(data$exp_sintomas_pre, data$exp_sintomas_post, paired = TRUE, exact = FALSE, correct = FALSE))
-t.test(data$exp_sintomas_pre, data$exp_sintomas_post, paired = TRUE, exact = FALSE, correct = FALSE)
-# GRAFICO EVA
-data_long_2$tiempo <- factor(data_long_2$tiempo, levels = c("pre", "post"))
-ggplot(data_long_2, aes(x = tiempo, y = eva, fill = tiempo)) +
-  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
-  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5) +
-  scale_fill_brewer(palette = "Pastel1") +
-  labs(title = "Comparación de la Escala Visual Analógica de Dolor Antes y Después del Tratamiento",,
-       x = "Tiempo de tratamiento", 
-       y = "Escala Visual Analógica de Dolor") +
+pesadez_plot <- ggplot(data_long, aes(x = time, y = pesadez, group = time)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA, fill = "white", color = "black") +
+  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5, color = "black") +
+  labs(x = "Treatment time", y = "Feeling of tension") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylim(0, 10)
+
+edema_plot <- ggplot(data_long, aes(x = time, y = edema, group = time)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA, fill = "white", color = "black") +
+  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5, color = "black") +
+  labs(x = "Treatment time", y = "Edema") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylim(0, 10)
+
+movility_plot <- ggplot(data_long, aes(x = time, y = mov_limitada, group = time)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA, fill = "white", color = "black") +
+  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5, color = "black") +
+  labs(x = "Treatment time", y = "Limited Mobility") +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylim(0, 10)
+
+combined_plot <- (pain_plot | pesadez_plot) / (edema_plot | movility_plot) +
+  plot_layout(guides = "collect") +
+  plot_annotation(
+                  theme = theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5)))
+
+# Add a rectangular box around the combined plot
+combined_plot + plot_layout(guides = "collect") + 
+  theme(plot.margin = margin(5.5, 5.5, 5.5, 5.5),
+        plot.background = element_rect(color = "black", size = 1.5))
+
+# Print the combined plot
+print(combined_plot)
+
+# Esthetic evaluation plot
+ggplot(data_long, aes(x = time, y = apariencia, group = time)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA,fill = "white", color = "black") +
+  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5, color = "black") +
+  scale_fill_manual(values = c("white", "gray"))  +
+  labs(
+    x = "Treatment time", 
+    y = "Esthetic evaluation") +
   theme_minimal() +
   theme(legend.position = "none",
         plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
@@ -212,79 +247,7 @@ ggplot(data_long_2, aes(x = tiempo, y = eva, fill = tiempo)) +
         axis.title.y = element_text(size = 14, face = "bold"),
         axis.text.x = element_text(size = 12),
         axis.text.y = element_text(size = 12)) +
-  ylim(0, 10)  
-
-# GRAFICO PESADEZ
-ggplot(data_long_2, aes(x = tiempo, y = pesadez, fill = tiempo)) +
-  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
-  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5) +
-  scale_fill_brewer(palette = "Pastel1") +
-  labs(title = "Comparación de la pesadez de extremidad Antes y Después del Tratamiento",,
-       x = "Tiempo de tratamiento", 
-       y = "Escala Visual Analógica de Dolor") +
-  theme_minimal() +
-  theme(legend.position = "none",
-        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(size = 12, hjust = 0.5),
-        axis.title.x = element_text(size = 14, face = "bold"),
-        axis.title.y = element_text(size = 14, face = "bold"),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12)) +
-  ylim(0, 10)  
-
-# GRAFICO HINCHAZON
-ggplot(data_long_2, aes(x = tiempo, y = hinchazon, fill = tiempo)) +
-  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
-  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5) +
-  scale_fill_brewer(palette = "Pastel1") +
-  labs(title = "Comparación de la hinchazón de extremidad Antes y Después del Tratamiento",,
-       x = "Tiempo de tratamiento", 
-       y = "Escala Visual Analógica de Dolor") +
-  theme_minimal() +
-  theme(legend.position = "none",
-        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(size = 12, hjust = 0.5),
-        axis.title.x = element_text(size = 14, face = "bold"),
-        axis.title.y = element_text(size = 14, face = "bold"),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12)) +
-  ylim(0, 10)  
-
-# GRAFICO MOVILIDAD
-ggplot(data_long_2, aes(x = tiempo, y = movilidad, fill = tiempo)) +
-  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
-  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5) +
-  scale_fill_brewer(palette = "Pastel1") +
-  labs(title = "Comparación de la Movilidad Antes y Después del Tratamiento",,
-       x = "Tiempo de tratamiento", 
-       y = "Escala Visual Analógica de Dolor") +
-  theme_minimal() +
-  theme(legend.position = "none",
-        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(size = 12, hjust = 0.5),
-        axis.title.x = element_text(size = 14, face = "bold"),
-        axis.title.y = element_text(size = 14, face = "bold"),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12)) +
-  ylim(0, 10)  
-
-# GRÁFICO APARIENCIA
-ggplot(data_long_2, aes(x = tiempo, y = apariencia, fill = tiempo)) +
-  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
-  geom_jitter(position = position_jitter(width = 0.2), alpha = 0.5) +
-  scale_fill_brewer(palette = "Pastel1") +
-  labs(title = "Comparación de la Apariencia Antes y Después del Tratamiento",,
-       x = "Tiempo de tratamiento", 
-       y = "Escala Visual Analógica de Dolor") +
-  theme_minimal() +
-  theme(legend.position = "none",
-        plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-        plot.subtitle = element_text(size = 12, hjust = 0.5),
-        axis.title.x = element_text(size = 14, face = "bold"),
-        axis.title.y = element_text(size = 14, face = "bold"),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12)) +
-  ylim(0, 10)  
+  ylim(1, 5)  
 
 
 
@@ -345,8 +308,48 @@ ggplot(data_percent, aes(x = satisfaccion, y = percent)) +
 
 # GRAFICO EXPECTATIVA ESTETICA
 # Crear una nueva columna para las etiquetas correctas
+plot_data_sym <- data %>%
+  summarise(
+    exp_sin_pre = sum(exp_sin_pre_dummy),
+    exp_sin_post = sum(exp_sin_pos_dummy),
+    
+  ) %>%
+  pivot_longer(everything(), names_to = "group", values_to = "count") %>% 
+  mutate(group = factor(group, levels = c("exp_sin_pre", "exp_sin_post"), 
+                        labels = c("Symptoms Pre", "Symptoms Post")))
 
-data_long_2 <- data_long_2 %>%
+plot_data_est <- data %>%
+  summarise(
+    exp_est_pre = sum(exp_est_pre_dummy),
+    exp_est_post = sum(exp_est_post_dummy),
+    
+  ) %>%
+  pivot_longer(everything(), names_to = "group", values_to = "count") %>% 
+  mutate(group = factor(group, levels = c("exp_est_pre", "exp_est_post"), 
+                        labels = c("Esthetic Pre", "Esthetic Post")))
+
+symptoms_plot <- ggplot(plot_data_sym, aes(x = group, y = count, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Group", y = "Count of Patients") +
+  scale_fill_manual(values = c("gray30", "gray70")) + # Specifying shades of grey
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylim(0,120)
+
+esthetic_plot <- ggplot(plot_data_est, aes(x = group, y = count, fill = group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Group", y = "Count of Patients") +
+  scale_fill_manual(values = c("gray30", "gray70")) + # Specifying shades of grey
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ylim(0,120)
+
+combined_bar <- symptoms_plot | esthetic_plot
+# Print the combined plot
+print(combined_bar)
+
+
+data_long <- data_long %>%
   mutate(estetico_label = case_when(
     tiempo == "pre" & estetico == 1 ~ "Exp. Baja",
     tiempo == "pre" & estetico == 2 ~ "Exp. Moderada",
