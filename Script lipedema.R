@@ -54,6 +54,8 @@ data <- lipedema %>%
   rename(imc_pre = imc) %>% 
   rowid_to_column("id") 
 
+
+
 # WIDE TO LONG
 
 data_long <- data %>%
@@ -116,7 +118,7 @@ tab1(data$enf_cronica)
 tab1(data$anticonceptivo)
 
 # PRE-POST DESCRIPTIVES
-variables <- c("eva", "pesadez", "edema", "imc", "mov_limitada", "apariencia", "exp_sintomas", "exp_estetica")
+variables <- c("eva", "pesadez", "edema", "imc", "mov_limitada", "apariencia", "exp_sintomas", "exp_estetica", "prenda")
 
 # Perform normality test and then t-test or Wilcoxon test based on normality
 test_results <- map_df(variables, ~{
@@ -180,6 +182,25 @@ print(mcnemar_symptoms)
 mcnemar_esthetic <- mcnemar.test(data$exp_est_pre_dummy, data$exp_est_post_dummy) 
 print(mcnemar_esthetic)
 
+mean(data$prenda_pre)
+tab1(data$prenda_pre)
+tab1(data$prenda_post)
+mean(data$prenda_post)
+mcnemar_clothing <- mcnemar.test(data$prenda_pre, data$prenda_post)
+print(mcnemar_clothing)
+
+
+# EXPLORING RELATIONS BETWEEN BASELINE CHARACTERISTICS AND DIFFERENCE BETWEEN PRE
+# AND POST 
+data$satisfaccion <- factor(data$satisfaccion, ordered = TRUE)
+
+data$dif_exp <- data$exp_estetica_post-data$exp_estetica_pre
+
+modelo_ordinal <- polr(satisfaccion ~ edad + imc_pre + volumen + enf_cronica + act_fisica + anticonceptivo + data$dif_exp, data = data, Hess = TRUE)
+summary(modelo_ordinal)
+
+# Ver los resultados del modelo
+summary(modelo_ordinal)
 
 
 #############
